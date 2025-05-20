@@ -1,8 +1,11 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+// FindGamePage.xaml.cs
+using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using WpfApp14.Services;
+using static WpfApp14.Services.DatabaseService;
 
 namespace WpfApp14
 {
@@ -22,44 +25,36 @@ namespace WpfApp14
             QuizzesListView.ItemsSource = _quizzes;
         }
 
-        private void QuizzesListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // Запуск игры двойным кликом
+        private void QuizzesListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Чтобы выбрать для игры, не для удаления
-            // Список просто обновляется при клике по строке
+            if (QuizzesListView.SelectedItem is QuizInfo quiz)
+                NavigateToGame(quiz.Id);
+        }
+
+        private void StartGameButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (QuizzesListView.SelectedItem is not QuizInfo quiz)
+            {
+                MessageBox.Show("Пожалуйста, выберите викторину.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            NavigateToGame(quiz.Id);
+        }
+
+        private void NavigateToGame(int quizId)
+        {
+            if (NavigationService == null)
+            {
+                MessageBox.Show("Навигация недоступна.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            NavigationService.Navigate(new GamePage(quizId));
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
             NavigationService?.GoBack();
-        }
-
-        private void DeleteQuizButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (QuizzesListView.SelectedItem is not QuizInfo qi)
-            {
-                MessageBox.Show("Пожалуйста, выберите викторину в списке.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var result = MessageBox.Show(
-                $"Удалить викторину \"{qi.Title}\" (ID={qi.Id})?",
-                "Подтвердите удаление",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result != MessageBoxResult.Yes)
-                return;
-
-            try
-            {
-                DatabaseService.DeleteQuiz(qi.Id);
-                MessageBox.Show($"Викторина \"{qi.Title}\" удалена.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                LoadQuizzes();
-            }
-            catch (System.Exception ex)
-            {
-                MessageBox.Show($"Не удалось удалить викторину:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
         }
     }
 }
