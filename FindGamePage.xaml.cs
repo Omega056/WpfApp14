@@ -1,5 +1,3 @@
-// FindGamePage.xaml.cs
-using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,8 +9,6 @@ namespace WpfApp14
 {
     public partial class FindGamePage : Page
     {
-        private List<QuizInfo> _quizzes = new();
-
         public FindGamePage()
         {
             InitializeComponent();
@@ -21,11 +17,9 @@ namespace WpfApp14
 
         private void LoadQuizzes()
         {
-            _quizzes = DatabaseService.GetAllQuizzes();
-            QuizzesListView.ItemsSource = _quizzes;
+            QuizzesListView.ItemsSource = DatabaseService.GetAllQuizzes();
         }
 
-        // Запуск игры двойным кликом
         private void QuizzesListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (QuizzesListView.SelectedItem is QuizInfo quiz)
@@ -44,12 +38,22 @@ namespace WpfApp14
 
         private void NavigateToGame(int quizId)
         {
-            if (NavigationService == null)
+            if (NavigationService is null)
             {
                 MessageBox.Show("Навигация недоступна.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            NavigationService.Navigate(new GamePage(quizId));
+
+            // Получаем список вопросов по Id викторины
+            var questions = DatabaseService.GetQuestionsForQuiz(quizId);
+            if (questions == null || questions.Count == 0)
+            {
+                MessageBox.Show("В выбранной викторине нет вопросов.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Переходим на страницу игры
+            NavigationService.Navigate(new GamePage(questions));
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
