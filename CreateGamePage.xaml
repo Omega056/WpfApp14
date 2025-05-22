@@ -5,7 +5,6 @@
       Title="Создать игру" Background="#F5EDE4">
 
     <Page.Resources>
-        <!-- Стили для кнопок -->
         <Style TargetType="Button" x:Key="RoundedButton">
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#CCCCCC"/>
@@ -29,10 +28,16 @@
             <Setter Property="Height" Value="50"/>
             <Setter Property="FontSize" Value="16"/>
         </Style>
+        <Style TargetType="TextBlock" x:Key="MessageTextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
+            <Setter Property="Foreground" Value="Red"/>
+        </Style>
     </Page.Resources>
 
     <DockPanel Margin="20">
-        <!-- Кнопка Назад -->
         <Button Content="← Назад"
                 Style="{StaticResource RoundedButton}"
                 DockPanel.Dock="Top"
@@ -42,11 +47,9 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <!-- Название викторины -->
                 <TextBlock Text="Название викторины:" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,5"/>
                 <TextBox x:Name="QuizTitleBox" Height="30" Margin="0,0,0,20"/>
 
-                <!-- Количество вопросов -->
                 <TextBlock Text="Количество вопросов:" Margin="0,0,0,5"/>
                 <ComboBox x:Name="QuestionsCountCombo" Width="60" SelectedIndex="4"
                           SelectionChanged="QuestionsCountCombo_SelectionChanged" Margin="0,0,0,20">
@@ -67,7 +70,6 @@
                     <ComboBoxItem>15</ComboBoxItem>
                 </ComboBox>
 
-                <!-- Вопросы -->
                 <ItemsControl x:Name="QuestionsItemsControl" ItemsSource="{Binding Questions}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -75,8 +77,6 @@
                                 <StackPanel>
                                     <TextBlock Text="{Binding QuestionHeader}" FontWeight="SemiBold" FontSize="16"/>
                                     <TextBox Text="{Binding QuestionText, UpdateSourceTrigger=PropertyChanged}" Margin="0,5"/>
-
-                                    <!-- Ответы -->
                                     <ItemsControl ItemsSource="{Binding Answers}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -87,8 +87,6 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-
-                                    <!-- Таймер -->
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                         <TextBlock Text="Таймер:" Width="60"/>
                                         <ComboBox SelectedIndex="{Binding SelectedTimerIndex}" Width="100">
@@ -103,12 +101,16 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Сохранить викторину -->
+                <TextBlock x:Name="MessageTextBlock" 
+                           Style="{StaticResource MessageTextBlock}"
+                           Visibility="Collapsed"/>
+
                 <Button Content="Добавить викторину"
                         Style="{StaticResource LargeRoundedButton}"
                         Background="#F0C36A" Foreground="White"
                         Click="AddQuizButton_Click"
-                        HorizontalAlignment="Center"/>
+                        HorizontalAlignment="Center"
+                        Margin="0,10,0,0"/>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

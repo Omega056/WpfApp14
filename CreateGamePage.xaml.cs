@@ -41,48 +41,90 @@ namespace WpfApp14
 
         private void AddQuizButton_Click(object sender, RoutedEventArgs e)
         {
-            // 1) Ловим факт нажатия
-            MessageBox.Show("DEBUG: вошли в AddQuizButton_Click", "DEBUG");
+            MessageTextBlock.Visibility = Visibility.Collapsed;
+            MessageTextBlock.Text = string.Empty;
 
-            // 2) Валидация заголовка
             string title = QuizTitleBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(title))
             {
-                MessageBox.Show("Пожалуйста, введите название викторины.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowError("Пожалуйста, введите название викторины.");
                 return;
             }
 
-            // 3) Валидация хотя бы одного вопроса
-            if (Questions.All(q => string.IsNullOrWhiteSpace(q.QuestionText)))
+            var validQuestions = Questions
+                .Where(q => !string.IsNullOrWhiteSpace(q.QuestionText))
+                .ToList();
+            if (!validQuestions.Any())
             {
-                MessageBox.Show("Нужно хотя бы один вопрос с текстом.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowError("Нужно хотя бы один вопрос с текстом.");
+                return;
+            }
+
+            var user = ((App)Application.Current).CurrentUser;
+            if (user == null)
+            {
+                ShowError("Пользователь не аутентифицирован. Пожалуйста, войдите.");
+                NavigationService?.Navigate(new LoginPage());
                 return;
             }
 
             try
             {
-                // 4) Сохраняем викторину
-                int quizId = DatabaseService.InsertQuiz(title);
+                int quizId = DatabaseService.InsertQuiz(user.Id, title);
+                ShowDebug($"Debug: Quiz inserted with ID={quizId}");
 
-                // 5) Сохраняем вопросы и ответы
-                foreach (var q in Questions)
+                int questionCount = 0;
+                foreach (var q in validQuestions)
                 {
-                    var answers = q.Answers.Select(a => (a.Text, a.IsCorrect)).ToArray();
+                    var answers = q.Answers
+                        .Where(a => !string.IsNullOrWhiteSpace(a.Text))
+                        .Select(a => (a.Text, a.IsCorrect))
+                        .ToArray();
+                    if (answers.Length == 0)
+                    {
+                        ShowDebug($"Debug: Skipping question '{q.QuestionHeader}' (no valid answers)");
+                        continue;
+                    }
                     int timer = q.SelectedTimerIndex switch { 0 => 10, 1 => 20, 2 => 30, _ => 10 };
                     DatabaseService.InsertQuestion(quizId, q.QuestionText, timer, answers);
+                    questionCount++;
+                    ShowDebug($"Debug: Inserted question '{q.QuestionHeader}' with {answers.Length} answers");
                 }
 
-                // 6) Успех
-                MessageBox.Show($"Викторина \"{title}\" сохранена (ID={quizId}).", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Можно перейти на страницу списка или очистить форму:
+                if (questionCount == 0)
+                {
+                    ShowError("Не удалось сохранить вопросы. Добавьте хотя бы один ответ.");
+                    DatabaseService.DeleteQuiz(quizId);
+                    return;
+                }
+                ShowSuccess($"Викторина \"{title}\" сохранена (ID={quizId}, вопросов={questionCount}).");
                 NavigationService?.Navigate(new FindGamePage());
             }
             catch (Exception ex)
             {
-                // 7) Выводим ошибку, если что-то пошло не так
-                MessageBox.Show(ex.ToString(), "Ошибка при сохранении викторины", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowError($"Ошибка при сохранении викторины: {ex.Message}");
             }
+        }
+
+        private void ShowError(string message)
+        {
+            MessageTextBlock.Text = message;
+            MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+            MessageTextBlock.Visibility = Visibility.Visible;
+        }
+
+        private void ShowSuccess(string message)
+        {
+            MessageTextBlock.Text = message;
+            MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Green);
+            MessageTextBlock.Visibility = Visibility.Visible;
+        }
+
+        private void ShowDebug(string message)
+        {
+            MessageTextBlock.Text = message;
+            MessageTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Blue);
+            MessageTextBlock.Visibility = Visibility.Visible;
         }
     }
 }

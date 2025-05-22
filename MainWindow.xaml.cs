@@ -7,7 +7,7 @@ namespace WpfApp14
         public MainWindow()
         {
             InitializeComponent();
-            MainFrame.Navigate(new HomePage());
+            MainFrame.Navigate(new LoginPage());
         }
     }
 }

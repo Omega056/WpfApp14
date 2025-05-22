@@ -1,7 +1,6 @@
-﻿using System;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using WpfApp14.Services;
+using System.Windows.Input;
 
 namespace WpfApp14
 {
@@ -10,9 +9,18 @@ namespace WpfApp14
         public HomePage()
         {
             InitializeComponent();
-            var dbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "quiz.db");
-            DatabaseService.Initialize(dbPath);
-            MessageBox.Show($"DB path: {dbPath}", "Debug");
+            LoadUserData();
+        }
+
+        private void LoadUserData()
+        {
+            var user = ((App)Application.Current).CurrentUser;
+            if (user != null)
+            {
+                UsernameTextBlock.Text = user.Username;
+                IQTextBlock.Text = user.IQ.ToString();
+                CorrectPercentageTextBlock.Text = $"{user.CorrectAnswerPercentage:F1}%";
+            }
         }
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
@@ -26,5 +34,8 @@ namespace WpfApp14
 
         private void FindGameButton_Click(object sender, RoutedEventArgs e)
             => NavigationService?.Navigate(new FindGamePage());
+
+        private void ProfileBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+            => NavigationService?.Navigate(new ProfilePage());
     }
 }

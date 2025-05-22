@@ -1,36 +1,103 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace WpfApp14.UIModels
 {
-    public class QuestionUIModel
+    public class QuestionUIModel : INotifyPropertyChanged
     {
-        public string QuestionHeader { get; private set; } = string.Empty;
-        public string QuestionText { get; set; } = string.Empty;
-        public ObservableCollection<AnswerUIModel> Answers { get; } = new();
-        public int SelectedTimerIndex { get; set; }
-        public string GroupName { get; }
+        private string _questionHeader;
+        private string _questionText;
+        private int _selectedTimerIndex;
 
-        public QuestionUIModel(int number)
+        public QuestionUIModel(int index)
         {
-            GroupName = $"grp{number}";
-            for (int i = 0; i < 4; i++)
-                Answers.Add(new AnswerUIModel(GroupName));
-            UpdateHeader(number);
+            UpdateHeader(index);
+            Answers = new ObservableCollection<AnswerUIModel>
+            {
+                new AnswerUIModel { GroupName = $"Question_{index}" },
+                new AnswerUIModel { GroupName = $"Question_{index}" },
+                new AnswerUIModel { GroupName = $"Question_{index}" },
+                new AnswerUIModel { GroupName = $"Question_{index}" }
+            };
         }
 
-        public void UpdateHeader(int number)
-            => QuestionHeader = $"Вопрос {number}";
+        public string QuestionHeader
+        {
+            get => _questionHeader;
+            set
+            {
+                _questionHeader = value;
+                OnPropertyChanged(nameof(QuestionHeader));
+            }
+        }
+
+        public string QuestionText
+        {
+            get => _questionText;
+            set
+            {
+                _questionText = value;
+                OnPropertyChanged(nameof(QuestionText));
+            }
+        }
+
+        public ObservableCollection<AnswerUIModel> Answers { get; set; }
+
+        public int SelectedTimerIndex
+        {
+            get => _selectedTimerIndex;
+            set
+            {
+                _selectedTimerIndex = value;
+                OnPropertyChanged(nameof(SelectedTimerIndex));
+            }
+        }
+
+        public void UpdateHeader(int index)
+        {
+            QuestionHeader = $"Вопрос {index}";
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
-    public class AnswerUIModel
+    public class AnswerUIModel : INotifyPropertyChanged
     {
-        public string GroupName { get; }
-        public string Text { get; set; } = string.Empty;
-        public bool IsCorrect { get; set; }
+        private string _text;
+        private bool _isCorrect;
 
-        public AnswerUIModel(string groupName)
+        public string Text
         {
-            GroupName = groupName;
+            get => _text;
+            set
+            {
+                _text = value;
+                OnPropertyChanged(nameof(Text));
+            }
+        }
+
+        public bool IsCorrect
+        {
+            get => _isCorrect;
+            set
+            {
+                _isCorrect = value;
+                OnPropertyChanged(nameof(IsCorrect));
+            }
+        }
+
+        public string GroupName { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

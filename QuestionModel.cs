@@ -7,6 +7,8 @@ namespace WpfApp14
         public int Id { get; set; }
         public string QuestionText { get; set; }
         public List<AnswerModel> Answers { get; set; }
+        public string Text { get; internal set; }
+        public object Options { get; internal set; }
     }
 
     public class AnswerModel

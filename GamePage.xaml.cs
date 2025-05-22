@@ -13,62 +13,57 @@ namespace WpfApp14
     {
         private readonly List<QuestionDataModel> _questions;
         private int _currentIndex;
-        private readonly DispatcherTimer _timer;
+        private int _score;
         private int _remainingSeconds;
+        private readonly DispatcherTimer _timer;
 
-        public GamePage(int quizId)
+        public GamePage(List<QuestionDataModel> questions)
         {
             InitializeComponent();
-
-            _questions = DatabaseService.GetQuestionsForQuiz(quizId) ?? new List<QuestionDataModel>();
-
-            if (_questions.Count == 0)
-            {
-                MessageBox.Show("Нет вопросов для этой викторины.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                NavigationService?.GoBack();
-                return;
-            }
+            _questions = questions;
+            _currentIndex = 0;
+            _score = 0;
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _timer.Tick += Timer_Tick;
-            _currentIndex = 0;
+            _timer.Tick += TimerTick;
+
             ShowNextQuestion();
         }
 
-
-        private void Timer_Tick(object? sender, EventArgs e)
+        private void TimerTick(object? sender, EventArgs e)
         {
-            _remainingSeconds--;
-            TimerTextBlock.Text = _remainingSeconds.ToString();
-            if (_remainingSeconds <= 0)
+            if (--_remainingSeconds <= 0)
             {
                 _timer.Stop();
-                ShowNextQuestion();
+                ProcessAnswer(null);
+                return;
             }
+            TimerTextBlock.Text = _remainingSeconds.ToString();
         }
 
         private void ShowNextQuestion()
         {
             if (_currentIndex >= _questions.Count)
             {
-                MessageBox.Show("Викторина завершена!", "Результаты", MessageBoxButton.OK, MessageBoxImage.Information);
-                NavigationService?.GoBack();
+                _timer.Stop();
+                NavigationService?.Navigate(new ResultPage(_score, _questions.Count - _score));
                 return;
             }
 
-            var question = _questions[_currentIndex];
-            QuestionTextBlock.Text = question.Text;
-            _remainingSeconds = question.TimerSeconds;
+            var q = _questions[_currentIndex];
+            QuestionTextBlock.Text = q.Text;
+            _remainingSeconds = q.TimerSeconds;
             TimerTextBlock.Text = _remainingSeconds.ToString();
 
             var buttons = new[] { AnswerButton1, AnswerButton2, AnswerButton3, AnswerButton4 };
             for (int i = 0; i < buttons.Length; i++)
             {
-                if (i < question.Answers.Count)
+                if (i < q.Answers.Count)
                 {
+                    var a = q.Answers[i];
+                    buttons[i].Content = a.Text;
+                    buttons[i].Tag = a.IsCorrect;
                     buttons[i].Visibility = Visibility.Visible;
-                    buttons[i].Content = question.Answers[i].Text;
-                    buttons[i].Tag = question.Answers[i].IsCorrect;
                     buttons[i].IsEnabled = true;
                     buttons[i].Background = System.Windows.Media.Brushes.White;
                 }
@@ -77,6 +72,7 @@ namespace WpfApp14
                     buttons[i].Visibility = Visibility.Collapsed;
                 }
             }
+
             _timer.Start();
         }
 
@@ -85,28 +81,33 @@ namespace WpfApp14
             if (sender is Button btn && btn.Tag is bool isCorrect)
             {
                 _timer.Stop();
-                MarkAnswers();
-                _currentIndex++;
-
-                var delay = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                delay.Tick += (_, _) =>
-                {
-                    delay.Stop();
-                    ShowNextQuestion();
-                };
-                delay.Start();
+                ProcessAnswer(isCorrect);
             }
         }
 
-        private void MarkAnswers()
+        private void ProcessAnswer(bool? isCorrect)
         {
+            if (isCorrect == true)
+                _score++;
+
             var buttons = new[] { AnswerButton1, AnswerButton2, AnswerButton3, AnswerButton4 };
             foreach (var btn in buttons.Where(b => b.Visibility == Visibility.Visible))
             {
                 bool correct = btn.Tag is bool c && c;
-                btn.Background = correct ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.LightCoral;
+                btn.Background = correct
+                    ? System.Windows.Media.Brushes.LightGreen
+                    : System.Windows.Media.Brushes.LightCoral;
                 btn.IsEnabled = false;
             }
+
+            _currentIndex++;
+            var delay = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            delay.Tick += (_, _) =>
+            {
+                delay.Stop();
+                ShowNextQuestion();
+            };
+            delay.Start();
         }
 
         private void OnQuit_Click(object sender, RoutedEventArgs e)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
+using BCrypt.Net;
 
 namespace WpfApp14.Services
 {
@@ -25,9 +26,24 @@ namespace WpfApp14.Services
 
             using var cmd = _connection.CreateCommand();
 
+            // Создание таблицы Users
+            cmd.CommandText = @"CREATE TABLE IF NOT EXISTS Users (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Username TEXT NOT NULL UNIQUE,
+                PasswordHash TEXT NOT NULL,
+                IQ INTEGER DEFAULT 100,
+                TotalQuizzes INTEGER DEFAULT 0,
+                CorrectAnswers INTEGER DEFAULT 0,
+                TotalAnswers INTEGER DEFAULT 0
+            );";
+            cmd.ExecuteNonQuery();
+
+            // Обновление таблицы Quizzes с полем UserId
             cmd.CommandText = @"CREATE TABLE IF NOT EXISTS Quizzes (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Title TEXT NOT NULL
+                UserId INTEGER NOT NULL,
+                Title TEXT NOT NULL,
+                FOREIGN KEY(UserId) REFERENCES Users(Id)
             );";
             cmd.ExecuteNonQuery();
 
@@ -50,7 +66,8 @@ namespace WpfApp14.Services
             cmd.ExecuteNonQuery();
         }
 
-        public static int InsertQuiz(string title)
+        // Регистрация нового пользователя
+        public static int RegisterUser(string username, string password)
         {
             if (_connection == null) throw new InvalidOperationException("DB not initialized");
 
@@ -58,7 +75,61 @@ namespace WpfApp14.Services
             using var cmd = _connection.CreateCommand();
             cmd.Transaction = tx;
 
-            cmd.CommandText = "INSERT INTO Quizzes (Title) VALUES ($t);";
+            string passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
+            cmd.CommandText = @"INSERT INTO Users (Username, PasswordHash) 
+                VALUES ($u, $p);";
+            cmd.Parameters.AddWithValue("$u", username);
+            cmd.Parameters.AddWithValue("$p", passwordHash);
+            cmd.ExecuteNonQuery();
+
+            cmd.CommandText = "SELECT last_insert_rowid();";
+            var userId = (long)cmd.ExecuteScalar()!;
+            tx.Commit();
+
+            return (int)userId;
+        }
+
+        // Аутентификация пользователя
+        public static User? AuthenticateUser(string username, string password)
+        {
+            if (_connection == null) throw new InvalidOperationException("DB not initialized");
+
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"SELECT Id, Username, PasswordHash, IQ, TotalQuizzes, CorrectAnswers, TotalAnswers 
+                FROM Users WHERE Username = $u;";
+            cmd.Parameters.AddWithValue("$u", username);
+
+            using var reader = cmd.ExecuteReader();
+            if (reader.Read())
+            {
+                string storedHash = reader.GetString(2);
+                if (BCrypt.Net.BCrypt.Verify(password, storedHash))
+                {
+                    return new User
+                    {
+                        Id = reader.GetInt32(0),
+                        Username = reader.GetString(1),
+                        IQ = reader.GetInt32(3),
+                        TotalQuizzes = reader.GetInt32(4),
+                        CorrectAnswers = reader.GetInt32(5),
+                        TotalAnswers = reader.GetInt32(6)
+                    };
+                }
+            }
+            return null;
+        }
+
+        // Вставка викторины с учетом UserId
+        public static int InsertQuiz(int userId, string title)
+        {
+            if (_connection == null) throw new InvalidOperationException("DB not initialized");
+
+            using var tx = _connection.BeginTransaction();
+            using var cmd = _connection.CreateCommand();
+            cmd.Transaction = tx;
+
+            cmd.CommandText = "INSERT INTO Quizzes (UserId, Title) VALUES ($u, $t);";
+            cmd.Parameters.AddWithValue("$u", userId);
             cmd.Parameters.AddWithValue("$t", title);
             cmd.ExecuteNonQuery();
 
@@ -67,6 +138,36 @@ namespace WpfApp14.Services
             tx.Commit();
 
             return (int)quizId;
+        }
+
+        // Получение викторин для конкретного пользователя
+        public static List<QuizInfo> GetAllQuizzes(int userId)
+        {
+            if (_connection == null) throw new InvalidOperationException("DB not initialized");
+
+            var result = new List<QuizInfo>();
+            using var cmd = _connection.CreateCommand();
+
+            cmd.CommandText = @"SELECT Q.Id, Q.Title, COUNT(Qu.Id) AS QuestionCount
+                FROM Quizzes Q
+                LEFT JOIN Questions Qu ON Q.Id = Qu.QuizId
+                WHERE Q.UserId = $u
+                GROUP BY Q.Id, Q.Title
+                ORDER BY Q.Id;";
+            cmd.Parameters.AddWithValue("$u", userId);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new QuizInfo
+                {
+                    Id = reader.GetInt32(0),
+                    Title = reader.GetString(1),
+                    QuestionCount = reader.GetInt32(2)
+                });
+            }
+
+            return result;
         }
 
         public static void InsertQuestion(int quizId, string text, int timerSeconds, (string Text, bool IsCorrect)[] answers)
@@ -99,33 +200,6 @@ namespace WpfApp14.Services
             }
 
             tx.Commit();
-        }
-
-        public static List<QuizInfo> GetAllQuizzes()
-        {
-            if (_connection == null) throw new InvalidOperationException("DB not initialized");
-
-            var result = new List<QuizInfo>();
-            using var cmd = _connection.CreateCommand();
-
-            cmd.CommandText = @"SELECT Q.Id, Q.Title, COUNT(Qu.Id) AS QuestionCount
-                FROM Quizzes Q
-                LEFT JOIN Questions Qu ON Q.Id = Qu.QuizId
-                GROUP BY Q.Id, Q.Title
-                ORDER BY Q.Id;";
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                result.Add(new QuizInfo
-                {
-                    Id = reader.GetInt32(0),
-                    Title = reader.GetString(1),
-                    QuestionCount = reader.GetInt32(2)
-                });
-            }
-
-            return result;
         }
 
         public static void DeleteQuiz(int quizId)
@@ -196,7 +270,16 @@ namespace WpfApp14.Services
             return result;
         }
 
-        // ↓↓↓ Сделал публичные классы моделей ↓↓↓
+        public class User
+        {
+            public int Id { get; set; }
+            public string Username { get; set; } = string.Empty;
+            public int IQ { get; set; }
+            public int TotalQuizzes { get; set; }
+            public int CorrectAnswers { get; set; }
+            public int TotalAnswers { get; set; }
+            public double CorrectAnswerPercentage => TotalAnswers > 0 ? (double)CorrectAnswers / TotalAnswers * 100 : 0;
+        }
 
         public class QuizInfo
         {
