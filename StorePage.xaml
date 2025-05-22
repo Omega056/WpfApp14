@@ -3,10 +3,6 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="Магазин">
 	<!-- Градиентный фон -->
-	<Page.Background>
-		<ImageBrush ImageSource="https://www.keramis.com.ua/wa-data/public/shop/products/80/34/143480/images/358120/358120.200.jpg"
-                    Stretch="UniformToFill" />
-	</Page.Background>
 
 	<Page.Resources>
 		<!-- Основной стиль закруглённой кнопки -->
